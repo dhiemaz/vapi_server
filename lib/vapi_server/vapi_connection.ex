@@ -106,18 +106,19 @@ defmodule VapiClient do
 
   @base_url "https://api.vapi.ai"
 
-  def config, do: Application.get_env(:vapi_server, VapiServer)
+  def config, do: Application.get_env(:vapi_server, VapiServer.Vapi)
 
   # function for buy a phone number
-  def buy_phone_number(country \\ "US") do
+  def buy_phone_number(country, name) do
+    IO.inspect(config())
     headers = [
-        {"Authorization", "Bearer 38503b50-d7b9-443f-aa23-63e4349b8b68"},
+        {"Authorization", "Bearer "<> config()[:private_key]},
         {"Content-Type", "application/json"}
     ]
 
-    body = %{areaCode: "480",
-             name: "sample-phone",
-             assistantId: "c74e0c25-319f-4a01-a7ea-0d61bbb78a48" # this should get from config
+    body = %{areaCode: country,
+             name: name,
+             assistantId: <> config()[:dev_assistant_id] # this should get from config
             } |> Jason.encode!
 
     request = Finch.build(:post, @base_url <> "/phone-number/buy", headers, body)
@@ -131,23 +132,23 @@ defmodule VapiClient do
         Logger.info("Failed bought phone number")
         {:ok, Jason.decode!(response_body)}
 
-      {:error, %Mint.TransportError{reason: reason}} ->
-        Logger.error("HTTP request failed: #{inspect(reason)}")
-        {:error, reason}
+      {:error, resp} ->
+        Logger.error("HTTP request failed: #{inspect(resp)}")
+        {:error, Jason.decode!(resp)}
     end
   end
 
   # function for create a call
   def call(phone_number) do
-
+    IO.inspect(config())
     headers = [
-        {"Authorization", "Bearer 38503b50-d7b9-443f-aa23-63e4349b8b68"},
+        {"Authorization", "Bearer "<> config()[:private_key]},
         {"Content-Type", "application/json"}
     ]
 
     body = %{
                 phoneNumberId: "09dd14d8-6a59-49b7-82a4-62177c13ba12",
-                assistantId: "c74e0c25-319f-4a01-a7ea-0d61bbb78a48",
+                assistantId: config()[:dev_assistant_id],
                 customer: %{
                     number: phone_number
                 }
@@ -170,78 +171,3 @@ defmodule VapiClient do
     end
   end
 end
-
-
-# defmodule VapiCall do
-#   @base_url "https://api.vapi.ai"
-
-#   ngrok_url = Ngrok.public_url(VapiServer.Ngrok)
-
-#   IO.inspect(config())
-#   IO.inspect({@vapi_url, config()[:dev_assistant_id]})
-
-#   def create_call(auth_token, phone_number_id, customer_number)
-
-#   case Finch.build(
-#            :patch,
-#            @vapi_url <> "/" <> config()[:dev_assistant_id],
-#            [
-#              {"Authorization", "Bearer " <> config()[:private_key]},
-#              {"Content-Type", "application/json"}
-#            ],
-#     headers = [
-#       {"authorization", "Bearer #{auth_token}"},
-#       {"content-type", "application/json"}
-#     ]
-
-#     data = %{
-#       "assistant" => %{
-#         "name"=>"sarah",
-#         "model": %{
-#           "model" => "lla3-8b-8192",
-#         }
-#         "systemPrompt" => @initial_prompt,
-#         "temperature"=> 0.7,
-#         "functions"=> [
-#                 %{
-#                     "name"=>"sendEmail",
-#                     "description"=> "Send email to the given email address and with the given content.",
-#                     "parameters": &{
-#                         "properties": &{
-#                             "content": &{
-#                                 "description" => "Actual Content of the email to be sent.",
-#                                 "type"=> "string"
-#                             },
-#                             "email"=> {
-#                                 "description"=> "Email to which we want to send the content.",
-#                                 "type"=> "string"
-#                             }
-#                         },
-#                         "required": [
-#                             "email"
-#                         ],
-#                         "type"=> "object"
-#                     }
-#                 }
-#             ],
-#       },
-#     }
-
-#     body = Jason.encode!(data)
-#     request = Finch.build(:post, @base_url, headers, body)
-#     case Finch.request(request, MyFinch) do
-#       {:ok, %Finch.Response{status: 201, body: response_body}} ->
-#         IO.puts("Call created successfully")
-#         IO.inspect(Jason.decode!(response_body))
-
-#       {:ok, %Finch.Response{status: status_code, body: response_body}} ->
-#         IO.puts("Failed to create call")
-#         IO.puts("Status code: #{status_code}")
-#         IO.puts(response_body)
-
-#       {:error, reason} ->
-#         IO.puts("Failed to create call")
-#         IO.inspect(reason)
-#     end
-#   end
-# end
